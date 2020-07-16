@@ -5,9 +5,9 @@ import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
 import Logo from '../../assets/logo-header.png';
 import SearchInput from '../../components/SearchInput';
+import formatValue from '../../utils/formatValue';
 
 import api from '../../services/api';
-import formatValue from '../../utils/formatValue';
 
 import {
   Container,
@@ -33,6 +33,7 @@ interface Food {
   name: string;
   description: string;
   price: number;
+  category: number;
   thumbnail_url: string;
   formattedPrice: string;
 }
@@ -51,30 +52,53 @@ const Dashboard: React.FC = () => {
   >();
   const [searchValue, setSearchValue] = useState('');
 
-  const navigation = useNavigation();
+  const { navigate } = useNavigation();
 
   async function handleNavigate(id: number): Promise<void> {
-    // Navigate do ProductDetails page
+    navigate('FoodDetails', { id });
   }
 
   useEffect(() => {
-    async function loadFoods(): Promise<void> {
-      // Load Foods from API
+    function loadFoods(): void {
+      api
+        .get<Food[]>('foods', { params: { name: searchValue || undefined } })
+        .then(response => {
+          const formattedFoods: Food[] = response.data.map((food: Food) => {
+            return { ...food, formattedPrice: formatValue(food.price) };
+          });
+
+          let filteredFoods = formattedFoods;
+
+          if (selectedCategory) {
+            filteredFoods = formattedFoods.filter(
+              food => food.category === selectedCategory,
+            );
+          }
+
+          setFoods(filteredFoods);
+        });
     }
 
     loadFoods();
-  }, [selectedCategory, searchValue]);
+  }, [searchValue, selectedCategory]);
 
   useEffect(() => {
-    async function loadCategories(): Promise<void> {
-      // Load categories from API
+    function loadCategories(): void {
+      api.get('categories').then(response => {
+        setCategories(response.data);
+      });
     }
 
     loadCategories();
   }, []);
 
   function handleSelectCategory(id: number): void {
-    // Select / deselect category
+    if (selectedCategory === id) {
+      setSelectedCategory(undefined);
+      return;
+    }
+
+    setSelectedCategory(id);
   }
 
   return (
@@ -85,7 +109,7 @@ const Dashboard: React.FC = () => {
           name="log-out"
           size={24}
           color="#FFB84D"
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigate('Home')}
         />
       </Header>
       <FilterContainer>
